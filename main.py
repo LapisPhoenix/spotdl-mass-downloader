@@ -46,7 +46,7 @@ def spotify_setup(file: str = ".env") -> spotipy.Spotify:
             client_id=client_id,
             client_secret=client_secret,
         )
-    except:
+    except Exception:
         raise ValueError(
             "SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be valid"
         )
@@ -91,9 +91,14 @@ def download_album(album_link: str) -> None:
 
         # Download songs
         execute("spotdl", album_link, "--overwrite", "skip", "--output", download_path)
-        print(f"{colorama.Fore.GREEN}Downloaded {name} - {artist} in {round(time.time() - start, 2)} seconds.{colorama.Style.RESET_ALL}")
+        print(f"{colorama.Fore.GREEN}Downloaded {' ' * (50 - len(download_path))}{download_path} in {round(time.time() - start, 2)} seconds.{colorama.Style.RESET_ALL}")
     except Exception as e:
-        print(f"{colorama.Fore.RED}Failed to download album from {album_link}. Error: {e}{colorama.Style.RESET_ALL}")
+        if str(e) == "http status: 400, code:-1 - Unexpected Spotify URL type., reason: None":
+            print(f"{colorama.Fore.RED}Invalid album link: {album_link}{colorama.Style.RESET_ALL}")
+        else:
+            print(f"{colorama.Fore.RED}Failed to download album from {album_link}. Error: {e}{colorama.Style.RESET_ALL}")
+            print(f"{colorama.Fore.RED}Failed to download in {round(time.time() - start, 2)} seconds.{colorama.Style.RESET_ALL}")
+        return
 
 
 def download_albums(urls: list[str]) -> None:
@@ -112,7 +117,7 @@ def download_albums(urls: list[str]) -> None:
         "https://open.spotify.com/album/6QPkyl04rXwTGlGlcYaRoW",
         "https://open.spotify.com/album/6QPkyl04rXwTGlGlcYaRoW",
         ])
-        ```
+    ```
     """
     with ThreadPoolExecutor() as executor:
         executor.map(lambda url: download_album(url), urls)
