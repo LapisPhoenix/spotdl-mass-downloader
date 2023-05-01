@@ -3,7 +3,9 @@ from colorama import Fore, Style, init
 
 
 class Logger:
-    # TODO: init colorama when class is made
+    def __init__(self) -> None:
+        init()
+    
     class LogLevel(Enum):
         DEBUG = 1
         INFO = 2
@@ -33,9 +35,6 @@ class Logger:
 
     
     def log(self, lvl: LogLevel = LogLevel.DEBUG, message = "Test"):
-        # init for colormam
-        init()
-
         levels = {
             1: f'[{Fore.CYAN}{Style.BRIGHT}Debug{Style.RESET_ALL}]',
             2: f'[{Fore.BLUE}{Style.BRIGHT}Info{Style.RESET_ALL}]',
