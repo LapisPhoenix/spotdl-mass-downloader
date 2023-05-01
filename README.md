@@ -13,8 +13,7 @@ python -m pip install requirements.txt
 1. Goto [The Spotify Dashboard](https://developer.spotify.com/)
 2. Create an application
 3. Grab both the client ID and client secret
-4. Back inside the files, rename `renametodotenv` to `.env`
-5. Inside `.env` fill out the params
+4. Configure the `config.json` file.
 
 # Usage
 Run the following command
