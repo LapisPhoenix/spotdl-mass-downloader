@@ -3,6 +3,7 @@ from colorama import Fore, Style, init
 
 
 class Logger:
+    # TODO: init colorama when class is made
     class LogLevel(Enum):
         DEBUG = 1
         INFO = 2
