@@ -1,8 +1,8 @@
 {
-    "Output": "The Output folder for songs.",
+    "Output": "The Output folder for songs. [IGNORE FOR NOW]",
     
     "spotify": {
-        "clientID": "Spotify client ID",
-        "clientSecret": "Spotify client Secret"
+        "clientID": "clientID",
+        "clientSecret": "clientSecret"
     }
 }

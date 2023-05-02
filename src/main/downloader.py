@@ -3,7 +3,8 @@ import time
 import subprocess
 import json
 import spotipy
-from lib.logging import Logger
+# from lib.logging import Logger, Colorization
+from ..lib.logging import Logger, Colorization
 from spotipy.oauth2 import SpotifyClientCredentials
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -11,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 class SpotifyDownloader:
     def __init__(self) -> None:
         self.logger = Logger()
+        self.color = Colorization()
     
     def spotify_setup(self, file: str = "config.json") -> spotipy.Spotify:
         """
@@ -56,16 +58,26 @@ class SpotifyDownloader:
         return spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
 
-    def execute(self, command: str, *args: list[str]) -> str:
+    def execute(self, command: str, *args: list[str]) -> tuple[str, bool]:
         """
         Execute a command.
 
         ### Arguments
         - command: Command to execute
         - args: Arguments to pass to command
-        """
 
-        return subprocess.check_output([command, *args])
+        ### Returns
+        - A tuple containing the output and a boolean indicating success
+        """
+        try:
+            output = subprocess.check_output([command, *args])
+            success = True
+        except Exception as e:
+            output = str(e)
+            success = False
+
+        return output, success
+
 
 
     def download_album(self, album_link: str) -> None:
@@ -80,7 +92,7 @@ class SpotifyDownloader:
         """
         spotify = self.spotify_setup()
 
-        start = time.time()
+        start_time = time.time()
         try:
             # Get album name & artist
             album = spotify.album(album_link)
@@ -90,53 +102,53 @@ class SpotifyDownloader:
             download_path = f"{name} - {artist}"
 
             # Check if album is already downloaded
-
             if os.path.exists(os.path.join(os.getcwd(), download_path)):
-                print(f"{colorama.Fore.RED}{download_path} already downloaded.{colorama.Style.RESET_ALL}")
-                print(f"{colorama.Fore.YELLOW}Ignoring {download_path} as it has already been found within the directory. (From URL {album_link}) {colorama.Style.RESET_ALL}")
-
+                self.logger.log(self.logger.LogLevel.INFO, f"{download_path} is already found in directory, ignoring. (From URL {album_link})")
                 return
 
-
             # Download songs
-            print(f"{colorama.Fore.YELLOW}Downloading {download_path}{colorama.Style.RESET_ALL}")
-            execute("spotdl", album_link, "--overwrite", "skip", "--output", download_path)
-            print(f"{colorama.Fore.GREEN}Downloaded  {download_path} in {colorama.Style.BRIGHT}{round(time.time() - start, 2)}{colorama.Style.NORMAL} seconds.{colorama.Style.RESET_ALL}")
+            self.logger.log(self.logger.LogLevel.INFO, f"Downloading {download_path}")
+            output, success = self.execute("spotdl", album_link, "--overwrite", "skip", "--output", download_path)  # Update this line
+            end_time = time.time()
+            self.logger.log(self.logger.LogLevel.INFO, f"Downloaded {download_path} in {self.logger.colorize(self.logger.Colors.BLUE, str(round(start_time - end_time, 2)))} seconds.")
+            
         except Exception as e:
             # If the album link is not an album link
             if str(e) == "http status: 400, code:-1 - Unexpected Spotify URL type., reason: None":
-                print(f"{colorama.Fore.RED}Invalid album link: {album_link}{colorama.Style.RESET_ALL}")
-                print(f"{colorama.Fore.RED}Failed to download in {colorama.Style.BRIGHT}{round(time.time() - start, 2)}{colorama.Style.NORMAL} seconds.{colorama.Style.RESET_ALL}")
-            else:
-                print(f"{colorama.Fore.RED}Failed to download album from {album_link}. Error: {e}{colorama.Style.RESET_ALL}")
-                print(f"{colorama.Fore.RED}Failed to download in {colorama.Style.BRIGHT}{round(time.time() - start, 2)}{colorama.Style.NORMAL} seconds.{colorama.Style.RESET_ALL}")
-
-            return
+                self.logger.log(self.logger.LogLevel.WARN, f"Invalid album link: {album_link}")
+        
+        return
 
 
-def download_albums(urls: list[str]) -> None:
-    """
-    Download a list of albums.
-    
-    ### Arguments
-    - urls: List of album links
-    
-    ### Notes
-    - This function is multi-threaded.
-    
-    ### Example
-    ```py
-    download_albums([
-        "https://open.spotify.com/album/6QPkyl04rXwTGlGlcYaRoW",
-        "https://open.spotify.com/album/6QPkyl04rXwTGlGlcYaRoW",
-        ])
-    ```
-    """
-    with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(download_album, url) for url in urls]
+    def download_albums(self, urls: list[str]) -> None:
+        """
+        Download a list of albums.
+        
+        ### Arguments
+        - urls: List of album links
+        
+        ### Notes
+        - This function is multi-threaded.
+        
+        ### Example
+        ```py
+        download_albums([
+            "https://open.spotify.com/album/6QPkyl04rXwTGlGlcYaRoW",
+            "https://open.spotify.com/album/6QPkyl04rXwTGlGlcYaRoW",
+            ])
+        ```
+        """
+        self.logger.log(self.logger.LogLevel.INFO, "Adding albums to queue.")
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = [executor.submit(self.download_album, url) for url in urls]
+            self.logger.log(self.logger.LogLevel.INFO, f"{self.color.colorize(self.color.Colors.BLUE, str(len(urls)))} albums in queue.")
 
-        for future in as_completed(futures):
-            try:
-                future.result()
-            except Exception as e:
-                print(f"{colorama.Fore.RED}An error occurred: {e}{colorama.Style.RESET_ALL}")
+            for future in as_completed(futures):
+                try:
+                    future.result()
+                except Exception as e:
+                    if str(e) == "cannot access local variable 'download_path' where it is not associated with a value":
+                        self.logger.log(self.logger.LogLevel.FATAL, f"Invalid Client ID or Client Secret!")
+                        exit(1)
+                    else:
+                        self.logger.log(self.logger.LogLevel.WARN, f"An error occurred: {self.color.colorize(self.color.Colors.RED, str(e))}")
